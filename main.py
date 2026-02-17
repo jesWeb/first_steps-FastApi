@@ -17,7 +17,12 @@ def home():
 # data estatica a un ednpoint
 
 
+  """ 
+  los query parametres sirven para filtrar y buscar y perzonalizar una peticion 
+  ordenado limitado etc
+  """
 @app.get("/posts")
+
 def list_posts(query: str | None = Query(default=None, description="Text para buscar")):
 
     if query:
@@ -29,3 +34,7 @@ def list_posts(query: str | None = Query(default=None, description="Text para bu
 
     return {"data": BLOG_POST}
 
+
+"""
+path parameters define un recurso ecxato que quermaos 
+"""
