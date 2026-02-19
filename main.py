@@ -1,11 +1,10 @@
-from fastapi import FastAPI, Query
-
+from fastapi import FastAPI, Query, Body
 app = FastAPI(title="mini Blog")
 
 BLOG_POST = [
-    {"id": 1, "title": "nala", "content": "Mi primer post con nala"},
-    {"id": 2, "title": "nala", "content": "Mi primer post con nala"},
-    {"id": 3, "title": "nala", "content": "Mi primer post con nala"}
+    {"id": 1, "title": "nala", "include_content": "Mi primer post con nala"},
+    {"id": 2, "title": "nala", "include_content": "Mi primer post con nala"},
+    {"id": 3, "title": "nala", "include_content": "Mi primer post con nala"}
 
 ]
 
@@ -46,10 +45,36 @@ path parameters define un recurso ecxato que quermaos forma parte de la url
 
 
 @app.get("/posts/{post_id}")
-def get_post(post_id: int, content: bool = Query(default=True, description="Incluir o no el contenido")):
+def get_post(post_id: int, include_content: bool = Query(default=True, description="Incluir o no el contenido")):
     for post in BLOG_POST:
         if post['id'] == post_id:
-            if not content:
+            if not include_content:
                 return {"id": post['id'], "title": post['title']}
             return {"data": post}
     return {"error": "post no encontrado"}
+
+
+"""
+Metodo Post
+
+"""
+@app.post("/posts")
+def create_posts(post: dict = Body(...)):
+    if "title" not in post or "content" not in post:
+        return {"error": "tile y content son requeridos"}
+
+    if not str(post['title']).strip():
+        return {"error": "Title no puede estar vacio"}
+
+    new_id = (BLOG_POST[-1]["id"]+1) if BLOG_POST else 1
+
+    new_post = {"id": new_id,
+                "title": post["title"], "content": post["content"]}
+    BLOG_POST.append(new_post)
+    return {"mesagge": "Post creado", "data": new_post}
+
+
+"""
+Metodo put
+
+"""
