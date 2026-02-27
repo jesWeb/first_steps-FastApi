@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Query, Body, HTTPException
-from pydantic import BaseModel, Field
-from typing import Optional
+from fastapi import FastAPI, Query, HTTPException
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Union
 app = FastAPI(title="mini Blog")
 
 BLOG_POST = [
@@ -11,11 +11,17 @@ BLOG_POST = [
 ]
 
 
+class Tag(BaseModel):
+    name: str = Field(..., min_length=2, max_length=30,
+                      description="Nombre de la ertiqueta")
+
+
 class PostBase(BaseModel):
     title: str
     content: Optional[str] = "Esperando contenido descriptivo"
+    tags: List[Tag] = []
 
-# * field y validaciones avanzadas
+# * field y validaciones avanzada
 
 
 class PostCreate(BaseModel):
@@ -31,7 +37,16 @@ class PostCreate(BaseModel):
         min_length=10,
         description="Contenido del post (minimo 10 caracteres)",
         examples=["Este ees un contenido valido porque tiene 10 caracteres"]
-    )
+    ),
+    tags: list[Tag] = []
+
+    # * validacion perzonalizada -> atravez de metodo y se puede reutilizar
+    @field_validator("title")
+    @classmethod
+    def not_allowed_title(cls, value: str) -> str:
+        if "spam" in value.lower():
+            raise ValueError("El titulo no pude contener la palabra: 'spam'")
+        return value
 
 
 # * validaciones sencillas y optionales
@@ -41,6 +56,15 @@ class postUpdate(BaseModel):
     """
     o agregarle un valor por defecto   content: Optional[str] = "valor por defecto"
     """
+
+
+class postPublic(PostBase):
+    id: int
+
+
+class Postsummary(BaseModel):
+    id: int
+    title: str
 
 
 @app.get("/")
@@ -58,19 +82,27 @@ los query parametres sirven para filtrar y buscar y perzonalizar una peticion
    
 """
 
+"""
+rewsponse model  se encragzara de hacer que compla con un molde de acuerdo a l,o que vamsos a definir`
+"""
 
-@app.get("/posts")
+
+@app.get("/posts", response_model=List[postPublic])
 def list_posts(query: str | None = Query(default=None, description="Text para buscar")):
 
     if query:
         results = [post for post in BLOG_POST if query.lower()
                    in post['title'].lower()]
-        return {"payload": results, "query": query}
+        # return {"payload": results, "query": query}
+        return results
+
         # for post in BLOG_POST:
         #     if query.lower() in post['title'].lower():
         #         results.append(post)
 
-    return {"payload": BLOG_POST}
+    # return {"payload": BLOG_POST}
+
+    return BLOG_POST
 
 
 """
@@ -80,14 +112,16 @@ path parameters define un recurso ecxato que quermaos forma parte de la url
 # ya ccon pydantic
 
 
-@app.get("/posts/{post_id}")
+@app.get("/posts/{post_id}", response_model=Union[postPublic, Postsummary], response_description="Post encontradfo")
 def get_post(post_id: int, content: bool = Query(default=True, description="Incluir o no el contenido")):
     for post in BLOG_POST:
         if post['id'] == post_id:
             if not content:
                 return {"id": post['id'], "title": post['title']}
-            return {"payload": post}
-    return {"error": "post no encontrado"}
+            return post
+    return HTTPException(
+        status_code=404, detail="Post no encontrado"
+    )
 
 
 """
@@ -96,15 +130,15 @@ Metodo Post
 """
 
 
-@app.post("/posts")
+@app.post("/posts", response_model=postPublic, response_description="metodo post (ok)")
 def create_posts(post: PostCreate):
 
     new_id = (BLOG_POST[-1]["id"]+1) if BLOG_POST else 1
 
     new_post = {"id": new_id,
-                "title": post.title, "content": post.content}
+                "title": post.title, "content": post.content,"tags":[tag.model_dump() for tag in post.tags]}
     BLOG_POST.append(new_post)
-    return {"mesagge": "Post creado", "payload": new_post}
+    return new_post
 
 
 """
@@ -113,7 +147,7 @@ Metodo put
 """
 
 
-@app.put("/posts/{post_id}")
+@app.put("/posts/{post_id}", response_model=postPublic)
 def update_post(post_id: int, payload: postUpdate):
     for post in BLOG_POST:
         if post["id"] == post_id:
@@ -122,7 +156,7 @@ def update_post(post_id: int, payload: postUpdate):
                 post["title"] = payload["title"]
             if "content" in payload:
                 post["content"] = payload["content"]
-            return {"menssage": "Post actualizado", "payload": post}
+            return post
 
     raise HTTPException(status_code=404, detail="No se encontro el post")
 
@@ -138,3 +172,6 @@ def deletePost(post_id: int):
         BLOG_POST.pop(index)
         return
     raise HTTPException(status_code=404, detail="Post no encontrado")
+
+
+# *
