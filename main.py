@@ -1,12 +1,12 @@
-from fastapi import FastAPI, Query, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from fastapi import FastAPI, Query, HTTPException, Path
+from pydantic import BaseModel, Field, field_validator, EmailStr
 from typing import Optional, List, Union
-app = FastAPI(title="mini Blog")
+app = FastAPI(titulo="mini Blog")
 
 BLOG_POST = [
-    {"id": 1, "title": "nala", "content": "Mi fiel nala"},
-    {"id": 2, "title": "Odie", "content": "El mas bonito"},
-    {"id": 3, "title": "peluche", "content": "Mi primer perro"}
+    {"id": 1, "titulo": "nala", "content": "Mi fiel nala"},
+    {"id": 2, "titulo": "Odie", "content": "El mas bonito"},
+    {"id": 3, "titulo": "peluche", "content": "Mi primer perro"}
 
 ]
 
@@ -16,10 +16,17 @@ class Tag(BaseModel):
                       description="Nombre de la ertiqueta")
 
 
+class Author(BaseModel):
+    name: str
+    email: EmailStr
+
+
 class PostBase(BaseModel):
-    title: str
-    content: Optional[str] = "Esperando contenido descriptivo"
-    tags: List[Tag] = []
+    titulo: str
+    content: str
+    # content: Optional[str] = "Esperando contenido descriptivo"
+    tags: Optional[List[Tag]] = Field(default_factory=list)
+    author: Optional[Author] = None
 
 # * field y validaciones avanzada
 
@@ -38,12 +45,15 @@ class PostCreate(BaseModel):
         description="Contenido del post (minimo 10 caracteres)",
         examples=["Este ees un contenido valido porque tiene 10 caracteres"]
     ),
-    tags: list[Tag] = []
+    # [] crea una lista de forma dependiente
+    tags: list[Tag] = Field(default_factory=list)
+    author: Optional[Author] = None
 
     # * validacion perzonalizada -> atravez de metodo y se puede reutilizar
-    @field_validator("title")
+
+    @field_validator("titulo")
     @classmethod
-    def not_allowed_title(cls, value: str) -> str:
+    def validate_titulo_content(cls, value: str) -> str:
         if "spam" in value.lower():
             raise ValueError("El titulo no pude contener la palabra: 'spam'")
         return value
@@ -51,7 +61,7 @@ class PostCreate(BaseModel):
 
 # * validaciones sencillas y optionales
 class postUpdate(BaseModel):
-    title: str
+    titulo: Optional[str] = Field(None, min_length=3, max_length=10)
     content: Optional[str] = None
     """
     o agregarle un valor por defecto   content: Optional[str] = "valor por defecto"
@@ -64,7 +74,7 @@ class postPublic(PostBase):
 
 class Postsummary(BaseModel):
     id: int
-    title: str
+    titulo: str
 
 
 @app.get("/")
@@ -86,18 +96,28 @@ los query parametres sirven para filtrar y buscar y perzonalizar una peticion
 rewsponse model  se encragzara de hacer que compla con un molde de acuerdo a l,o que vamsos a definir`
 """
 
+# validacion con QueryParameters
+
 
 @app.get("/posts", response_model=List[postPublic])
-def list_posts(query: str | None = Query(default=None, description="Text para buscar")):
+def list_posts(query:
+               Optional[str] = Query(
+                   default=None,
+                   description="Text para buscar",
+                   alias="search",
+                   min_length=3,
+                   max_length=8,
+                   pattern=r"z[a-zA-Z]+$"
+               )):
 
     if query:
         results = [post for post in BLOG_POST if query.lower()
-                   in post['title'].lower()]
+                   in post['titulo'].lower()]
         # return {"payload": results, "query": query}
         return results
 
         # for post in BLOG_POST:
-        #     if query.lower() in post['title'].lower():
+        #     if query.lower() in post['titulo'].lower():
         #         results.append(post)
 
     # return {"payload": BLOG_POST}
@@ -110,14 +130,22 @@ path parameters define un recurso ecxato que quermaos forma parte de la url
 """
 
 # ya ccon pydantic
+# validacion de path
 
 
 @app.get("/posts/{post_id}", response_model=Union[postPublic, Postsummary], response_description="Post encontradfo")
-def get_post(post_id: int, content: bool = Query(default=True, description="Incluir o no el contenido")):
+def get_post(post_id: int = Path(
+    ...,
+    ge=1,
+    title="ID del Post",
+    description="Identifiador entero del post. deber ser mayr a uno",
+    example=1
+
+), content: bool = Query(default=True, description="Incluir o no el contenido")):
     for post in BLOG_POST:
         if post['id'] == post_id:
             if not content:
-                return {"id": post['id'], "title": post['title']}
+                return {"id": post['id'], "titulo": post['titulo']}
             return post
     return HTTPException(
         status_code=404, detail="Post no encontrado"
@@ -134,9 +162,13 @@ Metodo Post
 def create_posts(post: PostCreate):
 
     new_id = (BLOG_POST[-1]["id"]+1) if BLOG_POST else 1
-
+# model dump transforma  de objeto a diccionario
     new_post = {"id": new_id,
-                "title": post.title, "content": post.content,"tags":[tag.model_dump() for tag in post.tags]}
+                "titulo": post.titulo,
+                "content": post.content,
+                "tags": [tag.model_dump() for tag in post.tags],
+                "author": post.author.model_dump() if post.author else None
+                }
     BLOG_POST.append(new_post)
     return new_post
 
@@ -152,8 +184,8 @@ def update_post(post_id: int, payload: postUpdate):
     for post in BLOG_POST:
         if post["id"] == post_id:
             payload = payload.model_dump(exclude_unset=True)
-            if "title" in payload:
-                post["title"] = payload["title"]
+            if "titulo" in payload:
+                post["titulo"] = payload["titulo"]
             if "content" in payload:
                 post["content"] = payload["content"]
             return post
@@ -172,6 +204,5 @@ def deletePost(post_id: int):
         BLOG_POST.pop(index)
         return
     raise HTTPException(status_code=404, detail="Post no encontrado")
-
 
 # *
