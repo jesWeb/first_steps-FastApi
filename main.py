@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException, Path
 from pydantic import BaseModel, Field, field_validator, EmailStr
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Literal
 app = FastAPI(titulo="mini Blog")
 
 BLOG_POST = [
@@ -108,13 +108,31 @@ def list_posts(query:
                    min_length=3,
                    max_length=8,
                    pattern=r"z[a-zA-Z]+$"
-               )):
+               ),
+               # paginacin con queryparasm
+               limit: int = Query(
+                   10, ge=1, le=50,
+                   description="Numero de resultados (1-50)"
+               ),
+               offset: int = Query(
+                   0, ge=0,
+                   description="Elementos a saltar antes de empezar la lista"
+               ),
+               order_by: Literal["id", "title"] = Query(
+                   "id", description="Campo de orden"
+               ),
+               direction: Literal["asc", "desc"] = Query(
+                   "asc", description="Direccion de orden "
+               )
+               ):
+    results = BLOG_POST
 
     if query:
-        results = [post for post in BLOG_POST if query.lower()
+        results = [post for post in results if query.lower()
                    in post['titulo'].lower()]
         # return {"payload": results, "query": query}
-        return results
+        results = sorted(
+            results, key=lambda post: post[order_by], reverse=(direction == "desc"))
 
         # for post in BLOG_POST:
         #     if query.lower() in post['titulo'].lower():
@@ -122,7 +140,7 @@ def list_posts(query:
 
     # return {"payload": BLOG_POST}
 
-    return BLOG_POST
+    return results[offset:offset + limit]
 
 
 """
