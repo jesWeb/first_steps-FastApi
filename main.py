@@ -77,6 +77,13 @@ class Postsummary(BaseModel):
     titulo: str
 
 
+class PaginatedPost(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[postPublic]
+
+
 @app.get("/")
 def home():
     return {'message': "bienvenidos a mini blog"}
@@ -99,7 +106,7 @@ rewsponse model  se encragzara de hacer que compla con un molde de acuerdo a l,o
 # validacion con QueryParameters
 
 
-@app.get("/posts", response_model=List[postPublic])
+@app.get("/posts", response_model=PaginatedPost)
 def list_posts(query:
                Optional[str] = Query(
                    default=None,
@@ -131,16 +138,20 @@ def list_posts(query:
         results = [post for post in results if query.lower()
                    in post['titulo'].lower()]
         # return {"payload": results, "query": query}
+
+        total = len(results)
+
         results = sorted(
             results, key=lambda post: post[order_by], reverse=(direction == "desc"))
 
+        items = results[offset:offset + limit]
         # for post in BLOG_POST:
         #     if query.lower() in post['titulo'].lower():
         #         results.append(post)
 
     # return {"payload": BLOG_POST}
 
-    return results[offset:offset + limit]
+    return PaginatedPost(total=total, limit=limit, offset=offset, items=items)
 
 
 """
