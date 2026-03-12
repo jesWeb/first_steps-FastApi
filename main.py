@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Query, HTTPException, Path
 from pydantic import BaseModel, Field, field_validator, EmailStr
 from typing import Optional, List, Union, Literal
+from math import ceil
 app = FastAPI(titulo="mini Blog")
 
 BLOG_POST = [
@@ -78,9 +79,15 @@ class Postsummary(BaseModel):
 
 
 class PaginatedPost(BaseModel):
+    page: int
+    per_page: int
     total: int
-    limit: int
-    offset: int
+    total_page: int
+    has_prev: bool
+    has_next: bool
+    order_by: Literal["id", "title"]
+    direction: Literal["asc", "desc"]
+    search: Optional[str] = None
     items: list[postPublic]
 
 
@@ -117,12 +124,12 @@ def list_posts(query:
                    pattern=r"z[a-zA-Z]+$"
                ),
                # paginacin con queryparasm
-               limit: int = Query(
+               per_page: int = Query(
                    10, ge=1, le=50,
-                   description="Numero de resultados (1-50)"
+                   description="Numero de pagina (1-50)"
                ),
-               offset: int = Query(
-                   0, ge=0,
+               page: int = Query(
+                   1, ge=1,
                    description="Elementos a saltar antes de empezar la lista"
                ),
                order_by: Literal["id", "title"] = Query(
@@ -133,7 +140,17 @@ def list_posts(query:
                )
                ):
     results = BLOG_POST
+    result_pages = ceil(total/per_page) if total > 0 else 0
 
+    if result_pages == 0:
+        current_page = 1
+    else:
+        current_page = min(page, result_pages)
+    
+    
+    
+    
+    
     if query:
         results = [post for post in results if query.lower()
                    in post['titulo'].lower()]
@@ -144,7 +161,7 @@ def list_posts(query:
         results = sorted(
             results, key=lambda post: post[order_by], reverse=(direction == "desc"))
 
-        items = results[offset:offset + limit]
+        items = results[page:offset + limit]
         # for post in BLOG_POST:
         #     if query.lower() in post['titulo'].lower():
         #         results.append(post)
