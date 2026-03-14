@@ -140,17 +140,13 @@ def list_posts(query:
                )
                ):
     results = BLOG_POST
-    result_pages = ceil(total/per_page) if total > 0 else 0
+    total_pages = ceil(total/per_page) if total > 0 else 0
 
-    if result_pages == 0:
+    if total_pages == 0:
         current_page = 1
     else:
-        current_page = min(page, result_pages)
-    
-    
-    
-    
-    
+        current_page = min(page, total_pages)
+
     if query:
         results = [post for post in results if query.lower()
                    in post['titulo'].lower()]
@@ -161,14 +157,33 @@ def list_posts(query:
         results = sorted(
             results, key=lambda post: post[order_by], reverse=(direction == "desc"))
 
-        items = results[page:offset + limit]
-        # for post in BLOG_POST:
-        #     if query.lower() in post['titulo'].lower():
-        #         results.append(post)
+    if total_pages == 0:
+        items = []
+    else:
+        start = (current_page - 1) * per_page
+        items = results[start:start + per_page]
+
+    has_prev = current_page > 1
+    has_next = current_page < total_pages
+
+    # items = results[page:offset + limit]
+    # for post in BLOG_POST:
+    #     if query.lower() in post['titulo'].lower():
+    #         results.append(post)
 
     # return {"payload": BLOG_POST}
 
-    return PaginatedPost(total=total, limit=limit, offset=offset, items=items)
+    return PaginatedPost(
+        pages=current_page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
+        has_prev=has_prev,
+        has_next=has_next,
+        direction=direction,
+        search=query,
+        items=items
+    )
 
 
 """
@@ -217,6 +232,28 @@ def create_posts(post: PostCreate):
                 }
     BLOG_POST.append(new_post)
     return new_post
+
+
+"""
+multiples variables con queryParams
+
+"""
+
+
+@app.get("/posts/by-tags", response_model=List[postPublic])
+def filter_by_tags(
+    tags: list[str] = Query(
+        ...,
+        min_length=2,
+        description="una o mas etiquetas. Ejemplo: ?tags=python&tags=fastapi"
+    )
+
+):
+    tags_lower = [tag.lower() for tag in tags]
+
+    return [
+        post for post in BLOG_POST if any (tag["name"].lower() in tags_lower for tag in post.get("tags", []))
+    ]
 
 
 """
