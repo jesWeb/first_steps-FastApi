@@ -1,7 +1,40 @@
+import os
 from fastapi import FastAPI, Query, HTTPException, Path
 from pydantic import BaseModel, Field, field_validator, EmailStr
 from typing import Optional, List, Union, Literal
 from math import ceil
+from sqlalchemy.orm import sessionmaker, Session,DeclarativeBase
+from sqlalchemy import create_engine
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
+print("conectado a :", DATABASE_URL)
+
+engine_kwargs = {}
+
+if DATABASE_URL.startswith("sqlite"):
+    engine_kwargs['connect_args'] = {"check_same_thread": False}
+
+
+engine = create_engine(DATABASE_URL, echo=True, future=True, autocommit=False)
+
+SessionLocal = sessionmaker(
+    bind=engine,autoflush=False,autocommit=False,class_=Session
+)
+
+class Base(DeclarativeBase):
+    pass
+
+def get_db():
+    db = SessionLocal()
+    
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+
+
+
 app = FastAPI(titulo="mini Blog")
 
 BLOG_POST = [
@@ -111,34 +144,42 @@ rewsponse model  se encragzara de hacer que compla con un molde de acuerdo a l,o
 """
 
 # validacion con QueryParameters
+""" 
+el deprecated que se usa para  cuando vamos a modificar una api y dicho paametro ya no vamos a ocupar
+"""
 
 
 @app.get("/posts", response_model=PaginatedPost)
-def list_posts(query:
-               Optional[str] = Query(
-                   default=None,
-                   description="Text para buscar",
-                   alias="search",
-                   min_length=3,
-                   max_length=8,
-                   pattern=r"z[a-zA-Z]+$"
-               ),
-               # paginacin con queryparasm
-               per_page: int = Query(
-                   10, ge=1, le=50,
-                   description="Numero de pagina (1-50)"
-               ),
-               page: int = Query(
-                   1, ge=1,
-                   description="Elementos a saltar antes de empezar la lista"
-               ),
-               order_by: Literal["id", "title"] = Query(
-                   "id", description="Campo de orden"
-               ),
-               direction: Literal["asc", "desc"] = Query(
-                   "asc", description="Direccion de orden "
-               )
-               ):
+def list_posts(
+    text: Optional[str] = Query(
+        default=None,
+        deprecated=True,
+        description="Parametro pobsoleto,usa query o search en su lugar"
+    ),
+    query: Optional[str] = Query(
+        default=None,
+        description="Text para buscar",
+        alias="search",
+        min_length=3,
+        max_length=8,
+        pattern=r"z[a-zA-Z]+$"
+    ),
+    # paginacin con queryparasm
+    per_page: int = Query(
+        10, ge=1, le=50,
+        description="Numero de pagina (1-50)"
+    ),
+    page: int = Query(
+        1, ge=1,
+        description="Elementos a saltar antes de empezar la lista"
+    ),
+    order_by: Literal["id", "title"] = Query(
+        "id", description="Campo de orden"
+    ),
+    direction: Literal["asc", "desc"] = Query(
+        "asc", description="Direccion de orden "
+    )
+):
     results = BLOG_POST
     total_pages = ceil(total/per_page) if total > 0 else 0
 
@@ -252,7 +293,7 @@ def filter_by_tags(
     tags_lower = [tag.lower() for tag in tags]
 
     return [
-        post for post in BLOG_POST if any (tag["name"].lower() in tags_lower for tag in post.get("tags", []))
+        post for post in BLOG_POST if any(tag["name"].lower() in tags_lower for tag in post.get("tags", []))
     ]
 
 
