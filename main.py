@@ -1,10 +1,13 @@
-import os
-from fastapi import FastAPI, Query, HTTPException, Path
-from pydantic import BaseModel, Field, field_validator, EmailStr
-from typing import Optional, List, Union, Literal
+from datetime import datetime
+from fastapi import FastAPI, Query, HTTPException, Path, status, Depends
 from math import ceil
-from sqlalchemy.orm import sessionmaker, Session,DeclarativeBase
-from sqlalchemy import create_engine
+from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
+from sqlalchemy import create_engine, Integer, String, Text, DateTime
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase, mapped_column, Mapped
+from typing import Optional, List, Union, Literal
+import os
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
 print("conectado a :", DATABASE_URL)
 
@@ -14,25 +17,45 @@ if DATABASE_URL.startswith("sqlite"):
     engine_kwargs['connect_args'] = {"check_same_thread": False}
 
 
-engine = create_engine(DATABASE_URL, echo=True, future=True, autocommit=False)
+engine = create_engine(DATABASE_URL, echo=True, future=True)
 
 SessionLocal = sessionmaker(
-    bind=engine,autoflush=False,autocommit=False,class_=Session
+    bind=engine, autoflush=False, autocommit=False, class_=Session
 )
+
 
 class Base(DeclarativeBase):
     pass
 
+
 def get_db():
     db = SessionLocal()
-    
+
     try:
         yield db
     finally:
         db.close()
 
 
+"""
+modelos de post con sql alchamy
+"""
 
+
+class PostORM():
+    # decalrar tabla
+    __tablename__ = "posts"
+    # declarar columnas
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    titulo: Mapped[str] = mapped_column(
+        String(100), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    create_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow)
+
+
+# solo en desarollo ya en porduccion usa migraciones
+Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI(titulo="mini Blog")
@@ -104,6 +127,7 @@ class postUpdate(BaseModel):
 
 class postPublic(PostBase):
     id: int
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Postsummary(BaseModel):
@@ -260,19 +284,30 @@ Metodo Post
 """
 
 
-@app.post("/posts", response_model=postPublic, response_description="metodo post (ok)")
-def create_posts(post: PostCreate):
+@app.post("/posts", response_model=postPublic, response_description="metodo post (ok)", status_code=status.HTTP_201_CREATED)
+def create_posts(post: PostCreate, db: Session = Depends(get_db)):
+    new_Post = PostORM(titulo=post.titulo, content=post.content)
 
-    new_id = (BLOG_POST[-1]["id"]+1) if BLOG_POST else 1
-# model dump transforma  de objeto a diccionario
-    new_post = {"id": new_id,
-                "titulo": post.titulo,
-                "content": post.content,
-                "tags": [tag.model_dump() for tag in post.tags],
-                "author": post.author.model_dump() if post.author else None
-                }
-    BLOG_POST.append(new_post)
-    return new_post
+    try:
+        db.add(new_Post)
+        db.commit()
+        db.refresh(new_Post)
+        return new_Post
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al crear el post")
+
+
+#     new_id = (BLOG_POST[-1]["id"]+1) if BLOG_POST else 1
+# # model dump transforma  de objeto a diccionario
+#     new_post = {"id": new_id,
+#                 "titulo": post.titulo,
+#                 "content": post.content,
+#                 "tags": [tag.model_dump() for tag in post.tags],
+#                 "author": post.author.model_dump() if post.author else None
+#                 }
+#     BLOG_POST.append(new_post)
+#     return new_post
 
 
 """
