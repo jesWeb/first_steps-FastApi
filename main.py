@@ -2,9 +2,9 @@ from datetime import datetime
 from fastapi import FastAPI, Query, HTTPException, Path, status, Depends
 from math import ceil
 from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
-from sqlalchemy import create_engine, Integer, String, Text, DateTime, func, select
+from sqlalchemy import Column, ForeignKey, Table, UniqueConstraint, create_engine, Integer, String, Text, DateTime, func, select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase, mapped_column, Mapped
+from sqlalchemy.orm import joinedload, relationship, selectinload, sessionmaker, Session, DeclarativeBase, mapped_column, Mapped
 from typing import Optional, List, Union, Literal
 import os
 
@@ -42,16 +42,69 @@ modelos de post con sql alchamy
 """
 
 
-class PostORM():
+class AuthorORM(Base):
+    __tablename__ = "authors"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+
+    posts: Mapped[List["PostORM"]] = relationship(back_populates="author")
+
+
+"""Relacion uno a muchos apost"""
+
+
+"""Relacion muchos a muchos """
+# tabala intermedia
+post_tags = Table(
+    "post_tags",
+    Base.metadata,
+    Column("post_id", ForeignKey(
+        "posts.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
+)
+
+
+class TagOrm(Base):
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(30), unique=True, index=True)
+
+    posts: Mapped[List["PostORM"]] = relationship(
+        secondary=post_tags,
+        back_populates="tags",
+        lazy="selectin"
+    )
+
+
+class PostORM(Base):
     # decalrar tabla
     __tablename__ = "posts"
+    __table_args__ = (UniqueConstraint("title", name="unique_post_title"),)
     # declarar columnas
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     title: Mapped[str] = mapped_column(
         String(100), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    create_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow)
+    """Relacion uno a nuno """
+    author_id: Mapped[Optional[int]] = mapped_column(ForeignKey("authors.id"))
+    author: Mapped[Optional["AuthorORM"]] = relationship(
+        back_populates="posts")
+
+    """Relacion muchos a muchos """
+    tags: Mapped[List["TagOrm"]] = relationship(
+        # realcion con la tabla intermedia
+        secondary=post_tags,
+        # accede atravez alias
+        back_populates="posts",
+        # busqueda
+        lazy="selectin",
+        # borrado cascada
+        passive_deletes=True
+    )
 
 
 # solo en desarollo ya en porduccion usa migraciones
@@ -60,22 +113,17 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="mini Blog")
 
-BLOG_POST = [
-    {"id": 1, "title": "nala", "content": "Mi fiel nala"},
-    {"id": 2, "title": "Odie", "content": "El mas bonito"},
-    {"id": 3, "title": "peluche", "content": "Mi primer perro"}
-
-]
-
 
 class Tag(BaseModel):
     name: str = Field(..., min_length=2, max_length=30,
                       description="Nombre de la ertiqueta")
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Author(BaseModel):
     name: str
     email: EmailStr
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PostBase(BaseModel):
@@ -84,6 +132,7 @@ class PostBase(BaseModel):
     # content: Optional[str] = "Esperando contenido descriptivo"
     tags: Optional[List[Tag]] = Field(default_factory=list)
     author: Optional[Author] = None
+    model_config = ConfigDict(from_attributes=True)
 
 # * field y validaciones avanzada
 
@@ -302,7 +351,34 @@ Metodo Post
 
 @app.post("/posts", response_model=postPublic, response_description="metodo post (ok)", status_code=status.HTTP_201_CREATED)
 def create_posts(post: PostCreate, db: Session = Depends(get_db)):
-    new_Post = PostORM(title=post.title, content=post.content)
+    """Author"""
+    author_obj = None
+
+    if post.author:
+        author_obj = db.execute(
+            select(AuthorORM).where(AuthorORM.email == post.author.email)
+        ).scalar_one_or_none()
+
+    if not author_obj:
+        author_obj = AuthorORM(name=post.author.name, email=post.author.email)
+
+        db.add(author_obj)
+        db.flush()
+
+    new_Post = PostORM(
+        title=post.title, content=post.content, author=author_obj)
+
+    for tag in post.tags:
+        tag_obj = db.execute(
+            select(TagOrm)
+            .where(TagOrm.name.ilike(tag.name))
+        ).scalar_one_or_none()
+
+        if not tag_obj:
+            tag_obj = TagOrm(name=tag.name)
+            db.add(tag_obj)
+            db.flush
+            new_Post.tags.append(tag_obj)
 
     try:
         db.add(new_Post)
@@ -338,14 +414,33 @@ def filter_by_tags(
         ...,
         min_length=2,
         description="una o mas etiquetas. Ejemplo: ?tags=python&tags=fastapi"
-    )
-
+    ),
+    db: Session = Depends(get_db)
 ):
-    tags_lower = [tag.lower() for tag in tags]
 
-    return [
-        post for post in BLOG_POST if any(tag["name"].lower() in tags_lower for tag in post.get("tags", []))
+    normalized_tags_names = [
+        Tag.strip()
+        for tag in tags
+        if tag.strip()
     ]
+    if not normalized_tags_names:
+        return []
+
+    post_list = {
+        select(PostORM)
+        .options(
+            # muchos a muchos
+            selectinload(PostORM.tags),
+            # cuando va auno
+            joinedload(PostORM.author)
+        ).where(PostORM.tags.any(func.lower(TagOrm.name).in_(normalized_tags_names))).order_by(PostORM.id.asc)
+    }
+
+    post = db.execute(
+        post_list
+    ).scalars().all()
+
+    return post
 
 
 """
@@ -389,7 +484,7 @@ def deletePost(post_id: int, db: Session = Depends(get_db)):
 
     db.delete(post)
     db.commit()
-    
-    return 
+
+    return
 
 # *
