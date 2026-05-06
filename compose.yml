@@ -1,15 +1,24 @@
 services:
   db:
-   image: postgres
-   restart: always
-   environment:
-    POSTGRES_USER: terex_postgres
-    POSTGRES_PASSWORD: password123
-    POSTGRES_DB: apiBlog_db
-   ports:
-    - "5432:5432"
+    image: postgres:17
+    restart: always
+    environment:
+      - POSTGRES_USER=terex
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=ApiBlog_db
+    ports:
+      - "5432:5432"
     volumes:
-    - postgres_data:/var/lib/postgresql/data
-  
-  volumes:
-    postgres_data
+      - postgres_data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+
+volumes:
+  postgres_data:
