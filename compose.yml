@@ -1,0 +1,15 @@
+services:
+  db:
+   image: postgres
+   restart: always
+   environment:
+    POSTGRES_USER: terex_postgres
+    POSTGRES_PASSWORD: password123
+    POSTGRES_DB: apiBlog_db
+   ports:
+    - "5432:5432"
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+  
+  volumes:
+    postgres_data
