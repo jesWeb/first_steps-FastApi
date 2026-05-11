@@ -7,9 +7,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, relationship, selectinload, sessionmaker, Session, DeclarativeBase, mapped_column, Mapped
 from typing import Optional, List, Union, Literal
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./blog.db")
-print("conectado a :", DATABASE_URL)
+#print("conectado a :", DATABASE_URL)
 
 engine_kwargs = {}
 

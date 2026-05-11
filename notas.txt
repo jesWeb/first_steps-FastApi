@@ -1,1 +1,11 @@
 notas
+
+¿Qué utilidad tiene ConfigDict(from_attributes=True) en Pydantic v2?
+
+Permite validar datos directamente desde instacnias ORM 
+eto hace posible devolver modelos pydenaitc directamente a partir de objetos sqlachamy sin tener que convertirlos a diccionarios manuealmnete
+
+
+
+
+
