@@ -17,13 +17,6 @@ modelos de post con sql alchamy
 """
 
 
-class AuthorORM(Base):
-    __tablename__ = "authors"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    email: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-
-    posts: Mapped[List["PostORM"]] = relationship(back_populates="author")
 
 
 """Relacion uno a muchos apost"""
@@ -40,46 +33,8 @@ post_tags = Table(
 )
 
 
-class TagOrm(Base):
-    __tablename__ = "tags"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(30), unique=True, index=True)
-
-    posts: Mapped[List["PostORM"]] = relationship(
-        secondary=post_tags,
-        back_populates="tags",
-        lazy="selectin"
-    )
 
 
-class PostORM(Base):
-    # decalrar tabla
-    __tablename__ = "posts"
-    __table_args__ = (UniqueConstraint("title", name="unique_post_title"),)
-    # declarar columnas
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    title: Mapped[str] = mapped_column(
-        String(100), nullable=False, index=True)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow)
-    """Relacion uno a nuno """
-    author_id: Mapped[Optional[int]] = mapped_column(ForeignKey("authors.id"))
-    author: Mapped[Optional["AuthorORM"]] = relationship(
-        back_populates="posts")
-
-    """Relacion muchos a muchos """
-    tags: Mapped[List["TagOrm"]] = relationship(
-        # realcion con la tabla intermedia
-        secondary=post_tags,
-        # accede atravez alias
-        back_populates="posts",
-        # busqueda
-        lazy="selectin",
-        # borrado cascada
-        passive_deletes=True
-    )
 
 
 # solo en desarollo ya en porduccion usa migraciones
