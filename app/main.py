@@ -1,4 +1,4 @@
-from datetime import datetime
+from dotenv import load_dotenv
 from fastapi import FastAPI, Query, HTTPException, Path, status, Depends
 from math import ceil
 from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
@@ -7,7 +7,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, relationship, selectinload, sessionmaker, Session, DeclarativeBase, mapped_column, Mapped
 from typing import Optional, List, Union, Literal
 import os
-from dotenv import load_dotenv
 
 load_dotenv()
 

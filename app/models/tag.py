@@ -1,8 +1,14 @@
-from typing import List
-from sqlalchemy import Integer, String
-from sqlalchemy.orm import relationship, mapped_column, Mapped
 from app.core.db import Base
 from app.models.post import PostORM
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import relationship, mapped_column, Mapped
+from typing import List
+from __future__ import annotations
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .post import PostORM
+
 
 class TagOrm(Base):
     __tablename__ = "tags"
@@ -11,8 +17,7 @@ class TagOrm(Base):
     name: Mapped[str] = mapped_column(String(30), unique=True, index=True)
 
     posts: Mapped[List["PostORM"]] = relationship(
-        secondary=post_tags,
+        secondary="post_tags",
         back_populates="tags",
         lazy="selectin"
     )
-
