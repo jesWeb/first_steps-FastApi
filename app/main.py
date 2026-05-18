@@ -102,35 +102,35 @@ def list_posts(
     ),
     db: Session = Depends(get_db)
 ):
-    results = select(PostORM)
-    total_pages = ceil(total/per_page) if total > 0 else 0
+    # results = select(PostORM)
+    # total_pages = ceil(total/per_page) if total > 0 else 0
 
-    if query:
-        results = results.where(PostORM.title.ilike(f"%{query}%"))
-        # return {"payload": results, "query": query}
+    # if query:
+    #     results = results.where(PostORM.title.ilike(f"%{query}%"))
+    #     # return {"payload": results, "query": query}
 
-        total = db.scalar(select(func.count()).select_from(
-            results.subquery())) or 0
+    #     total = db.scalar(select(func.count()).select_from(
+    #         results.subquery())) or 0
 
-        current_page = 1 if total_pages == 0 else min(page, total_pages)
+    #     current_page = 1 if total_pages == 0 else min(page, total_pages)
 
-        if order_by == "id":
-            order_col = PostORM.id
-        else:
-            order_col = func.lower(PostORM.title)
+    #     if order_by == "id":
+    #         order_col = PostORM.id
+    #     else:
+    #         order_col = func.lower(PostORM.title)
 
-        results = results, order_by(
-            order_col.asc() if direction == "asc" else order_col.desc())
+    #     results = results, order_by(
+    #         order_col.asc() if direction == "asc" else order_col.desc())
 
-        # results = sorted(
-        #     results, key=lambda post: post[order_by], reverse=(direction == "desc"))
+    #     # results = sorted(
+    #     #     results, key=lambda post: post[order_by], reverse=(direction == "desc"))
 
-    if total_pages == 0:
-        items = list[PostORM] = []
-    else:
-        start = (current_page - 1) * per_page
-        items = db.execute(results.limit(
-            per_page).offset(start)).scalars().all()
+    # if total_pages == 0:
+    #     items = list[PostORM] = []
+    # else:
+    #     start = (current_page - 1) * per_page
+    #     items = db.execute(results.limit(
+    #         per_page).offset(start)).scalars().all()
 
     has_prev = current_page > 1
     has_next = current_page < total_pages
