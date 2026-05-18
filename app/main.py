@@ -173,8 +173,8 @@ def get_post(post_id: int = Path(
 
 ), content: bool = Query(default=True, description="Incluir o no el contenido"), db: Session = Depends(get_db)):
 
-    post_find = select(PostORM).where(PostORM.id == post_id)
-    post = db.execute(post_find).scalar_one_or_none()
+    # post_find = select(PostORM).where(PostORM.id == post_id)
+    # post = db.execute(post_find).scalar_one_or_none()
 
 #    post = db.get(PostORM, post_id)
 
