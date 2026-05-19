@@ -264,27 +264,27 @@ def filter_by_tags(
     db: Session = Depends(get_db)
 ):
 
-    normalized_tags_names = [
-        Tag.strip()
-        for tag in tags
-        if tag.strip()
-    ]
-    if not normalized_tags_names:
-        return []
+    # normalized_tags_names = [
+    #     Tag.strip()
+    #     for tag in tags
+    #     if tag.strip()
+    # ]
+    # if not normalized_tags_names:
+    #     return []
 
-    post_list = {
-        select(PostORM)
-        .options(
-            # muchos a muchos
-            selectinload(PostORM.tags),
-            # cuando va auno
-            joinedload(PostORM.author)
-        ).where(PostORM.tags.any(func.lower(TagOrm.name).in_(normalized_tags_names))).order_by(PostORM.id.asc)
-    }
+    # post_list = {
+    #     select(PostORM)
+    #     .options(
+    #         # muchos a muchos
+    #         selectinload(PostORM.tags),
+    #         # cuando va auno
+    #         joinedload(PostORM.author)
+    #     ).where(PostORM.tags.any(func.lower(TagOrm.name).in_(normalized_tags_names))).order_by(PostORM.id.asc)
+    # }
 
-    post = db.execute(
-        post_list
-    ).scalars().all()
+    # post = db.execute(
+    #     post_list
+    # ).scalars().all()
 
     return post
 

@@ -3,8 +3,10 @@ from math import ceil
 from app.core import db
 from app.models import PostORM, AuthorORM
 from sqlalchemy import select, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import Optional
+
+from app.models.tag import TagOrm
 
 """Este se encarga de las consultas los repository"""
 
@@ -43,5 +45,28 @@ class PostRepository:
             start = (current_page - 1) * per_page
             items = self.db.execute(results.limit(
                 per_page).offset(start)).scalars().all()
-            
+
             return total, items
+
+    def by_tags(self, tag_names: list[str]) -> list[PostORM]:
+        normalized_tags_names = [
+            tag.strip()
+            for tag in tag_names
+            if tag.strip()
+        ]
+        if not normalized_tags_names:
+            return []
+
+        post_list = {
+            select(PostORM)
+            .options(
+                # muchos a muchos
+                selectinload(PostORM.tags),
+                # cuando va auno
+                joinedload(PostORM.author)
+            ).where(PostORM.tags.any(func.lower(TagOrm.name).in_(normalized_tags_names))).order_by(PostORM.id.asc)
+        }
+
+        return self.db.execute(
+            post_list
+        ).scalars().all()
