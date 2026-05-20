@@ -198,18 +198,18 @@ Metodo Post
 @app.post("/posts", response_model=postPublic, response_description="metodo post (ok)", status_code=status.HTTP_201_CREATED)
 def create_posts(post: PostCreate, db: Session = Depends(get_db)):
     """Author"""
-    author_obj = None
+    # author_obj = None
 
-    if post.author:
-        author_obj = db.execute(
-            select(AuthorORM).where(AuthorORM.email == post.author.email)
-        ).scalar_one_or_none()
+    # if post.author:
+    #     author_obj = db.execute(
+    #         select(AuthorORM).where(AuthorORM.email == post.author.email)
+    #     ).scalar_one_or_none()
 
-    if not author_obj:
-        author_obj = AuthorORM(name=post.author.name, email=post.author.email)
+    # if not author_obj:
+    #     author_obj = AuthorORM(name=post.author.name, email=post.author.email)
 
-        db.add(author_obj)
-        db.flush()
+    #     db.add(author_obj)
+    #     db.flush()
 
     new_Post = PostORM(
         title=post.title, content=post.content, author=author_obj)

@@ -8,7 +8,7 @@ from typing import Optional
 
 from app.models.tag import TagOrm
 
-"""Este se encarga de las consultas los repository"""
+"""Este se encarga de las consultas los repository-> osea buscar crear """
 
 
 class PostRepository:
@@ -70,3 +70,54 @@ class PostRepository:
         return self.db.execute(
             post_list
         ).scalars().all()
+
+    def ensure_author(self, name: str, email: str) -> AuthorORM:
+
+        author_obj = self.db.execute(select(AuthorORM).where(
+            AuthorORM.email == email)).scalar_one_or_none()
+
+        if author_obj:
+            return author_obj
+
+        author_obj = AuthorORM(name, email)
+
+        self.db.add(author_obj)
+        self.db.flush()
+
+        return author_obj
+
+    def ensure_tag(self, name: str) -> TagOrm:
+
+        tag_obj = self.db.execute(
+            select(TagOrm)
+            .where(TagOrm.name.ilike(TagOrm.name.ilike(name)))
+        ).scalar_one_or_none()
+
+        if tag_obj:
+            return tag_obj
+
+        tag_obj = TagOrm(name=name)
+        self.db.add(tag_obj)
+        self.db.flush
+
+        return tag_obj
+
+    def create_post(self, title: str, content: str, author: Optional[dict], tags: list[dict]):
+
+        author_obj = None
+
+        if author:
+            author_obj = self.ensure_author(author['name'], author['email'])
+
+        post = PostORM(title=title, content=content, author=author_obj)
+
+        for tag in post.tags:
+
+         tag_obj = self.ensure_tag(tag['name'])
+         post.tags.append(tag_obj)
+         
+         self.db.add(post)
+         self.db.flush()
+         self.db.refresh(post)
+         
+         return post
