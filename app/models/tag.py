@@ -1,9 +1,9 @@
+from __future__ import annotations
 from app.core.db import Base
 from app.models.post import PostORM
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing import List
-from __future__ import annotations
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:

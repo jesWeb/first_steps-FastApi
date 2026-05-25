@@ -3,7 +3,7 @@ from typing import List, TYPE_CHECKING
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from app.core.db import Base
-from app.models.post import PostORM
+
 
 # sirve para imprtaciones circulares -> nos ayuda a evitar errores en el editor de codigo mas no se ejecuta en la ejecucion de codigo y solo lee el schema
 if TYPE_CHECKING:
