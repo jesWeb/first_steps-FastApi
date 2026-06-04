@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
@@ -26,7 +26,9 @@ def decode_token(token: str) -> dict:
     payload = jwt.decode(jwt=token, key=SECRET_KEY, algorithms=[ALGORITHM])
     return payload
 
-#*btener el usuario
+# *btener el usuario
+
+
 def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exec = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,11 +47,11 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         return {"email": sub, "username": username}
 
     except ExpiredSignatureError:
-        raise  HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Token expirado",
-        headers={"WWW-Authenticate": "Bearer"}
-    )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expirado",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
 
     except InvalidTokenError:
         raise credentials_exec
