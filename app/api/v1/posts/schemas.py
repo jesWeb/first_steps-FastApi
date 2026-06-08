@@ -42,7 +42,7 @@ class PostCreate(BaseModel):
     ),
     # [] crea una lista de forma dependiente
     tags: list[Tag] = Field(default_factory=list)
-    author: Optional[Author] = None
+    # author: Optional[Author] = None
 
     # * validacion perzonalizada -> atravez de metodo y se puede reutilizar
 

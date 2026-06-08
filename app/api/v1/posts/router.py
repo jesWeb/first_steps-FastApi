@@ -7,7 +7,7 @@ from app.core.db import get_db
 from .schemas import (postPublic, PaginatedPost,
                       PostCreate, postUpdate, Postsummary)
 from .repository import PostRepository
-from app.core.security import oauth2_scheme
+from app.core.security import oauth2_scheme, get_current_user
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -107,14 +107,13 @@ def get_post(post_id: int = Path(
 
 
 @router.post("", response_model=postPublic, response_description="metodo post (ok)", status_code=status.HTTP_201_CREATED)
-def create_posts(post: PostCreate, db: Session = Depends(get_db)):
+def create_posts(post: PostCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
     """Author"""
 
     repository = PostRepository(db)
 
     try:
-        post = repository.create_post(title=post.title, content=post.content, author=(
-            post.author.model_dump() if post.author else None), tags=[tag.model_dump() for tag in post.tags]),
+        post = repository.create_post(title=post.title, content=post.content, author=(user), tags=[tag.model_dump() for tag in post.tags]),
 
         db.commit()
         return post
@@ -129,7 +128,7 @@ def create_posts(post: PostCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{post_id}", response_model=postPublic)
-def update_post(post_id: int, payload: postUpdate, db: Session = Depends(get_db)):
+def update_post(post_id: int, payload: postUpdate, db: Session = Depends(get_db),user=Depends(get_current_user)):
 
     respository = PostRepository(db)
     post = respository.get(post_id)
@@ -150,7 +149,7 @@ def update_post(post_id: int, payload: postUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-def deletePost(post_id: int, db: Session = Depends(get_db)):
+def deletePost(post_id: int, db: Session = Depends(get_db),user=Depends(get_current_user)):
     repository = PostRepository(db)
     post = repository.get(post_id)
     try:

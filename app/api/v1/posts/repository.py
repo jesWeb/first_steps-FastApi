@@ -107,11 +107,11 @@ class PostRepository:
         author_obj = None
 
         if author:
-            author_obj = self.ensure_author(author['name'], author['email'])
+            author_obj = self.ensure_author(author['username'], author['email'])
 
         post = PostORM(title=title, content=content, author=author_obj)
 
-        for tag in post.tags:
+        for tag in tags:
 
          tag_obj = self.ensure_tag(tag['name'])
          post.tags.append(tag_obj)
