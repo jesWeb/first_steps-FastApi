@@ -21,6 +21,7 @@ def create_app() -> FastAPI:
 
     #asegurar que la carpeta de cargas exista o bien la ve crear en casso de que mno 
     os.makedirs(MEDIA_DIR, exist_ok=True)
+    app.mount("/media",StaticFiles(directory=MEDIA_DIR),name="data")
 
     return app
 
