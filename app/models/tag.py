@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from .post import PostORM
 
 
-class TagOrm(Base):
+class TagORM(Base):
     __tablename__ = "tags"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)

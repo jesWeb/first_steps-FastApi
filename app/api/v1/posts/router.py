@@ -1,15 +1,34 @@
+
 from math import ceil
-from typing import List, Literal, Optional, Union
+from fastapi import APIRouter, Query, Depends, Path, status, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from fastapi import APIRouter, Depends, status, Path, Query, HTTPException
+from typing import List, Optional, Union, Literal, Annotated
 from app.core.db import get_db
-from .schemas import (postPublic, PaginatedPost,
-                      PostCreate, postUpdate, Postsummary)
+from .schemas import (PostPublic, PaginatedPost,
+                      PostCreate, PostUpdate, PostSummary)
 from .repository import PostRepository
 from app.core.security import oauth2_scheme, get_current_user
+from app.services.file_storage import save_uploaded_image
+import time
+import asyncio
+import threading
 
 router = APIRouter(prefix="/posts", tags=["posts"])
+
+
+# @router.get("/sync")
+# def sync_endpoint():
+#     print("SYNC theread: ", threading.current_thread().name)
+#     time.sleep(8)
+#     return {"message": "Función síncrona termino"}
+
+
+# @router.get("/async")
+# async def async_endpoint():
+#     print("ASYNC theread: ", threading.current_thread().name)
+#     await asyncio.sleep(8)
+#     return {"message": "Función asíncrona termino"}
 
 
 @router.get("", response_model=PaginatedPost)
@@ -17,30 +36,29 @@ def list_posts(
     text: Optional[str] = Query(
         default=None,
         deprecated=True,
-        description="Parametro pobsoleto,usa query o search en su lugar"
+        description="Parámetro obsoleto, usa 'query o search' en su lugar."
     ),
     query: Optional[str] = Query(
         default=None,
-        description="Text para buscar",
+        description="Texto para buscar por título",
         alias="search",
         min_length=3,
-        max_length=8,
-        pattern=r"z[a-zA-Z]+$"
+        max_length=50,
+        pattern=r"^[\w\sáéíóúÁÉÍÓÚüÜ-]+$"
     ),
-    # paginacin con queryparasm
     per_page: int = Query(
         10, ge=1, le=50,
-        description="Numero de pagina (1-50)"
+        description="Número de resultados (1-50)"
     ),
     page: int = Query(
         1, ge=1,
-        description="Elementos a saltar antes de empezar la lista"
+        description="Número de página (>=1)"
     ),
     order_by: Literal["id", "title"] = Query(
         "id", description="Campo de orden"
     ),
     direction: Literal["asc", "desc"] = Query(
-        "asc", description="Direccion de orden "
+        "asc", description="Dirección de orden"
     ),
     db: Session = Depends(get_db)
 ):
@@ -48,34 +66,34 @@ def list_posts(
     query = query or text
 
     total, items = repository.search(
-        query, order_by, direction, page, per_page
-    )
+        query, order_by, direction, page, per_page)
 
     total_pages = ceil(total/per_page) if total > 0 else 0
     current_page = 1 if total_pages == 0 else min(page, total_pages)
 
     has_prev = current_page > 1
-    has_next = current_page < total_pages
+    has_next = current_page < total_pages if total_pages > 0 else False
 
     return PaginatedPost(
-        pages=current_page,
+        page=current_page,
         per_page=per_page,
         total=total,
         total_pages=total_pages,
         has_prev=has_prev,
         has_next=has_next,
+        order_by=order_by,
         direction=direction,
         search=query,
         items=items
     )
 
 
-@router.get("/by-tags", response_model=List[postPublic])
+@router.get("/by-tags", response_model=List[PostPublic])
 def filter_by_tags(
-    tags: list[str] = Query(
+    tags: List[str] = Query(
         ...,
-        min_length=2,
-        description="una o mas etiquetas. Ejemplo: ?tags=python&tags=fastapi"
+        min_length=1,
+        description="Una o más etiquetas. Ejemplo: ?tags=python&tags=fastapi"
     ),
     db: Session = Depends(get_db)
 ):
@@ -83,82 +101,92 @@ def filter_by_tags(
     return repository.by_tags(tags)
 
 
-@router.get("/{post_id}", response_model=Union[postPublic, Postsummary], response_description="Post encontrado")
+@router.get("/{post_id}", response_model=Union[PostPublic, PostSummary], response_description="Post encontrado")
 def get_post(post_id: int = Path(
     ...,
     ge=1,
-    title="ID del Post",
-    description="Identifiador entero del post. deber ser mayr a uno",
+    title="ID del post",
+    description="Identificador entero del post. Debe ser mayor a 1",
     example=1
+), include_content: bool = Query(default=True, description="Incluir o no el contenido"), db: Session = Depends(get_db)):
 
-), content: bool = Query(default=True, description="Incluir o no el contenido"), db: Session = Depends(get_db)):
     repository = PostRepository(db)
     post = repository.get(post_id)
 
     if not post:
-        raise HTTPException(
-            status_code=404, detail="Post no encontrado"
-        )
+        raise HTTPException(status_code=404, detail="Post no encontrado")
 
-    if content:
-        return postPublic.model_validate(post, from_attributes=True)
+    if include_content:
+        return PostPublic.model_validate(post, from_attributes=True)
 
-    return Postsummary.model_validate(post, from_attributes=True)
+    return PostSummary.model_validate(post, from_attributes=True)
 
 
-@router.post("", response_model=postPublic, response_description="metodo post (ok)", status_code=status.HTTP_201_CREATED)
-def create_posts(post: PostCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    """Author"""
-
+@router.post("", response_model=PostPublic, response_description="Post creado (OK)", status_code=status.HTTP_201_CREATED)
+def create_post(post: Annotated[PostCreate, Depends(PostCreate.as_form)], image: Optional[UploadFile] = File(None), db: Session = Depends(get_db), user=Depends(get_current_user)):
     repository = PostRepository(db)
-
+    saved = None
     try:
-        post = repository.create_post(title=post.title, content=post.content, author=(user), tags=[tag.model_dump() for tag in post.tags]),
+        if image is not None:
+            saved = save_uploaded_image(image)
 
+        image_url = saved["url"] if saved else None
+
+        post = repository.create_post(
+            title=post.title,
+            content=post.content,
+            author=user,
+            tags=[tag.model_dump() for tag in post.tags],
+            image_url=image_url,
+        )
         db.commit()
+        db.refresh(post)
         return post
     except IntegrityError:
         db.rollback()
         raise HTTPException(
-            status_code=409, detail="El titulo ya existe,prueba con otro"
-        )
+            status_code=409, detail="El título ya existe, prueba con otro")
     except SQLAlchemyError:
         db.rollback()
         raise HTTPException(status_code=500, detail="Error al crear el post")
 
 
-@router.put("/{post_id}", response_model=postPublic)
-def update_post(post_id: int, payload: postUpdate, db: Session = Depends(get_db),user=Depends(get_current_user)):
+@router.put("/{post_id}", response_model=PostPublic, response_description="Post actualizado", response_model_exclude_none=True)
+def update_post(post_id: int, data: PostUpdate, db: Session = Depends(get_db), user=Depends(get_current_user)):
 
-    respository = PostRepository(db)
-    post = respository.get(post_id)
+    repository = PostRepository(db)
+    post = repository.get(post_id)
 
     if not post:
-        raise HTTPException(status_code=404, detail="No se encontro el post")
+        raise HTTPException(status_code=404, detail="Post no encontrado")
 
     try:
-
-        updates = payload.model_dump(exclude_unset=True)
-        post = respository.update_post(post, updates)
+        updates = data.model_dump(exclude_unset=True)
+        post = repository.update_post(post, updates)
         db.commit()
-        db.refresh(db)
+        db.refresh(post)
         return post
     except SQLAlchemyError:
         db.rollback()
-        raise HTTPException(status_code=500, detail="error al actualizar post")
+        raise HTTPException(
+            status_code=500, detail="Error al actualizar el post")
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-def deletePost(post_id: int, db: Session = Depends(get_db),user=Depends(get_current_user)):
+def delete_post(post_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     repository = PostRepository(db)
     post = repository.get(post_id)
+
+    if not post:
+        raise HTTPException(status_code=404, detail="Post no encontrado")
+
     try:
-        repository.deletePost(post)
+        repository.delete_post(post)
         db.commit()
     except SQLAlchemyError:
         db.rollback()
         raise HTTPException(
-            status_code=500, detail="Error al eliminar al post")
+            status_code=500, detail="Error al eliminar el post")
 
 
 @router.get("/secure")
