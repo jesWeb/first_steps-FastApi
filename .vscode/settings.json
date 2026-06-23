@@ -1,0 +1,6 @@
+{
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.supportAllPythonDocuments": true,
+    "pythonIndent.useTabOnHangingIndent": true,
+    "pythonIndent.trimLinesWithOnlyWhitespace": true
+}
