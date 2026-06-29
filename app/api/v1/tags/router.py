@@ -88,3 +88,18 @@ def delete_tag(tag_id: int, db: Session = Depends(get_db), user=Depends(get_curr
 @router.get("/secure")
 def secure_endpoint(token: str = Depends(oauth2_scheme)):
     return {"message": "Acceso con token", "token_recibido": token}
+
+
+@router.get("/popular/top")
+def get_popular(
+        db: Session = Depends(get_db),
+        user=Depends(get_current_user)):
+
+    repository = tagRepository(db)
+    popular = repository.most_popular()
+
+    if not popular:
+        raise HTTPException(
+            status_code=404, detail="No hay Tag encontrado y no es popular")
+
+    return popular

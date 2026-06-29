@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.tags.schemas import TagPublic
 
 from app.models import tag
+from app.models.post import PostORM, post_tags
 from app.models.tag import TagORM
 from app.services.pagination import paginate_query
 
@@ -91,3 +92,26 @@ class tagRepository:
             return False
         self.db.delete(tag)
         return True
+
+      # Mas Popular
+    def most_popular(self) -> dict | None:
+        row = (
+            # diccionario que vamos a mostrar
+            self.db.execute(
+                select(
+                    TagORM.id.label("id"),
+                    TagORM.name.label("name"),
+                    func.count(PostORM.id).label("uses")
+                )
+                .join(post_tags, post_tags.c.tag_id == TagORM.id)
+                .join(PostORM, PostORM.id == post_tags.c.post_id)
+                .group_by(TagORM.id, TagORM.name)
+                .order_by(func.count(PostORM.id).desc(), func.lower(TagORM.name).asc())
+                .limit(1)
+            )
+            # nos ayuda a convertir en diccionario
+            .mappings()
+            .first()
+        )
+
+        return dict(row) if row else None
