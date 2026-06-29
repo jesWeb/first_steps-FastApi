@@ -10,9 +10,7 @@ from .schemas import (PostPublic, PaginatedPost,
 from .repository import PostRepository
 from app.core.security import oauth2_scheme, get_current_user
 from app.services.file_storage import save_uploaded_image
-import time
-import asyncio
-import threading
+
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 

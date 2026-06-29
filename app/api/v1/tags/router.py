@@ -4,9 +4,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.v1.tags.repository import tagRepository
-from app.api.v1.tags.schemas import TagCreate, TagPublic
+from app.api.v1.tags.schemas import TagCreate, TagPublic, TagUpdate
 from app.core.db import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, oauth2_scheme
 
 
 router = APIRouter(prefix="/tags", tags=["tags"])
@@ -44,3 +44,47 @@ def create_Tag(tag: TagCreate, db: Session = Depends(get_db), user=Depends(get_c
     except SQLAlchemyError:
         db.rollback()
         raise HTTPException(status_code=500, detail="error al crear el tag")
+
+
+@router.put("/{tag_id}", response_model=TagPublic, response_description="Tag actualizado")
+def update_tag(
+    tag_id: int,
+    payload: TagUpdate,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    repository = tagRepository(db)
+    tag_obj = repository.update(tag_id, name=payload.name)
+
+    if not tag_obj:
+        raise HTTPException(status_code=404, detail="Tag no encontrado")
+
+    try:
+        db.commit()
+        return TagPublic.model_validate(tag_obj)
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail="error al actualizar el tag")
+
+
+@router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tag(tag_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    repository = tagRepository(db)
+    tag = repository.delete(tag_id)
+
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag no encontrado")
+
+    try:
+        db.commit()
+        return None
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail="Error al eliminar el tag")
+
+
+@router.get("/secure")
+def secure_endpoint(token: str = Depends(oauth2_scheme)):
+    return {"message": "Acceso con token", "token_recibido": token}
