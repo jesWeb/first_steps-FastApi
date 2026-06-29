@@ -1,4 +1,4 @@
-from locale import normalize
+
 from math import ceil
 from typing import Optional, List, Tuple
 from sqlalchemy import select, func

@@ -44,24 +44,23 @@ class tagRepository:
                 TagORM.name
             ).ilike(f"%{search.lower()}%"))
 
-            allowed_order = {
-                "id": TagORM.id,
-                "name": func.lower(TagORM.name)
-            }
-            # inyectar servicio de paginacion
+        allowed_order = {
+            "id": TagORM.id,
+            "name": func.lower(TagORM.name)
+        }
 
-            result = paginate_query(
-                db=self.db,
-                model=TagORM,
-                base_query=query,
-                page=page,
-                per_page=per_page,
-                orde_by=order_by,
-                direction=direction,
-                allowed_order=allowed_order
-            )
-            # evitamos el error de python de autenticacon de informacion
-            result["items"] = [TagPublic.model_validate(
-                item) for item in result["items"]]
+        result = paginate_query(
+            db=self.db,
+            model=TagORM,
+            base_query=query,
+            page=page,
+            per_page=per_page,
+            orde_by=order_by,
+            direction=direction,
+            allowed_order=allowed_order
+        )
+
+        result["items"] = [TagPublic.model_validate(
+            item) for item in result["items"]]
 
         return result
