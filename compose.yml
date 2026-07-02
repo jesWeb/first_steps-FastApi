@@ -17,21 +17,21 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
-    build: .
-    container_name: fastapi_app
-    restart: always
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql+psycopg2://admin:secretpassword@db:5432/mydb
-    volumes:
-      - .:/app
-    depends_on:
-      db:
-        condition: service_healthy
+  # app:
+  #   build: .
+  #   container_name: fastapi_app
+  #   restart: always
+  #   ports:
+  #     - "8000:8000"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     DATABASE_URL: postgresql+psycopg2://admin:secretpassword@db:5432/mydb
+  #   volumes:
+  #     - .:/app
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
 
 volumes:
   pgdata:

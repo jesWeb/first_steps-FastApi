@@ -3,18 +3,18 @@ from datetime import datetime, timedelta, timezone
 import secrets
 from typing import Literal, Optional
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError, PyJWTError
-from sqlalchemy import literal
 from sqlalchemy.orm import Session
+from app.api.v1.auth.repository import UserRepository
 from app.core.config import settings
 from app.core.db import get_db
 from app.models.user import User
 from pwdlib import PasswordHash
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 password_hash = PasswordHash.recommended()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 # def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 #     to_encode = data.copy()
@@ -26,9 +26,23 @@ password_hash = PasswordHash.recommended()
 #     return token
 
 
+def raise_frobidden():
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="No tienes permisos Suficientes",
+    )
+
+
+def invalid_credentials():
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Credenciales Invalidas",
+    )
+
+
 def decode_token(token: str) -> dict:
-    payload = jwt.decode(jwt=token, key=secrets.JWT_SECRET,
-                         algorithms=[secrets.JWT_ALGORITH])
+    payload = jwt.decode(jwt=token, key=settings.JWT_SECRET,
+                         algorithms=[settings.JWT_ALGORITH])
     return payload
 
 
@@ -49,9 +63,9 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
     try:
         payload = decode_token(token)
         sub: Optional[str] = payload.get("sub")
-        username: Optional[str] = payload.get("username")
+        # username: Optional[str] = payload.get("username")
 
-        if not sub or not username:
+        if not sub :
             raise credentials_exec
 
         user_id = int(sub)
@@ -87,13 +101,25 @@ def verify_password(plain: str, hashed: str) -> bool:
 def require_role(min_role: Literal["user", "editor", "admin"]):
     order = {"user": 0, "editor": 1, "admin": 2}
 
-    def evaluation(user:User = Depends(get_current_user))->User:
+    def evaluation(user: User = Depends(get_current_user)) -> User:
         if order[user.role] < order[min_role]:
             raise raise_frobidden()
         return user
-    
+
     return evaluation
 
+
+async def auth2_token(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    repository = UserRepository(db)
+
+    user = repository.get_by_email(form.username)
+
+    if not user or not verify_password(form.password, user.hased_password):
+        raise invalid_credentials()
+
+    token = create_access_token(sub=str(user.id))
+
+    return {"access_token": token, "token_type": "bearer"}
 
 require_user = require_role("user")
 
