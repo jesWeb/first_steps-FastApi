@@ -39,7 +39,7 @@ def register(payload: userCreate, db: Session = Depends(get_db)):
 async def login(payload: userLogin, db: Session = Depends(get_db)):
     repository = UserRepository(db)
     user = repository.get_by_email(payload.email)
-    if not user or verify_password(payload.password, user.hased_password):
+    if not user or not verify_password(payload.password, user.hased_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales invalidas")
 
@@ -69,7 +69,7 @@ def set_role(
     updates = respository.set_role(user, payload.role)
 
     db.commit()
-    db.refresh(user)
+    db.refresh(updates)
     return UserPublic.model_validate(updates)
 
 

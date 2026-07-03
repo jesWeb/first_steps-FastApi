@@ -1,12 +1,12 @@
 
 from datetime import datetime, timedelta, timezone
-import secrets
 from typing import Literal, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError, PyJWTError
 from sqlalchemy.orm import Session
+
 from app.api.v1.auth.repository import UserRepository
 from app.core.config import settings
 from app.core.db import get_db

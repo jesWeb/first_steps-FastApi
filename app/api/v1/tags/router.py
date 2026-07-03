@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.api.v1.tags.repository import tagRepository
 from app.api.v1.tags.schemas import TagCreate, TagPublic, TagUpdate
 from app.core.db import get_db
-from app.core.security import get_current_user, oauth2_scheme
+from app.core.security import get_current_user, oauth2_scheme, require_user, require_admin, require_editor
+from app.models.user import User
 
 
 router = APIRouter(prefix="/tags", tags=["tags"])
@@ -33,9 +34,10 @@ def list_tags(
 
 
 @router.post("", response_model=TagPublic, response_description="Post CReado", status_code=status.HTTP_201_CREATED)
-def create_Tag(tag: TagCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+def create_Tag(tag: TagCreate, db: Session = Depends(get_db), _editor: User = Depends(require_editor)):
     repository = tagRepository(db)
     try:
+
         tag_created = repository.create_tag(name=tag.name)
         db.commit()
         db.refresh(tag_created)
@@ -51,7 +53,7 @@ def update_tag(
     tag_id: int,
     payload: TagUpdate,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    _editor: User = Depends(require_editor)
 ):
     repository = tagRepository(db)
     tag_obj = repository.update(tag_id, name=payload.name)
@@ -69,7 +71,7 @@ def update_tag(
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_tag(tag_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+def delete_tag(tag_id: int, db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
     repository = tagRepository(db)
     tag = repository.delete(tag_id)
 
@@ -92,8 +94,8 @@ def secure_endpoint(token: str = Depends(oauth2_scheme)):
 
 @router.get("/popular/top")
 def get_popular(
-        db: Session = Depends(get_db),
-        user=Depends(get_current_user)):
+    db: Session = Depends(get_db),
+        _user: User = Depends(require_user)):
 
     repository = tagRepository(db)
     popular = repository.most_popular()
