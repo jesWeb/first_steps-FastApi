@@ -1,13 +1,15 @@
 from __future__ import annotations
 from typing import List, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime,timezone
 from typing import List, Optional
 from sqlalchemy import Integer, String, Text, DateTime, UniqueConstraint, ForeignKey, Table, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.db import Base
+from app.models import category
 if TYPE_CHECKING:
-    from .author import AuthorORM
+    from .user import User
     from .tag import TagORM
+    from .category import CategoryOrm
 
 post_tags = Table(
     "post_tags",
@@ -28,11 +30,17 @@ class PostORM(Base):
     image_url = mapped_column(String(300), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow)
+        DateTime, default=datetime.now(timezone.utc))
 
-    author_id: Mapped[Optional[int]] = mapped_column(ForeignKey("authors.id"))
-    author: Mapped[Optional["AuthorORM"]] = relationship(
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+
+    user: Mapped[Optional["User"]] = relationship(
         back_populates="posts")
+
+    category_id: Mapped[Optional[int]] = mapped_column(ForeignKey(
+        "categories.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    category = relationship("CategoryOrm", back_populates="posts"),
 
     tags: Mapped[List["TagORM"]] = relationship(
         secondary=post_tags,

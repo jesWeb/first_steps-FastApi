@@ -1,7 +1,7 @@
 """FORMA DE IMPORTAR los archivos o completos"""
-from .author import AuthorORM
 from .tag import TagORM
 from .post import PostORM, post_tags
 from .user import User
+from .category import CategoryOrm
 
-__all__ = ["AuthorORM", "TagORM", "PostORM", "post_tags","User"]
+__all__ = ["TagORM", "PostORM", "post_tags", "User","CategoryOrm"]
