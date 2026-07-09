@@ -48,7 +48,7 @@ def decode_token(token: str) -> dict:
 
 def create_access_token(sub: str, minutes: int | None = None) -> str:
     expire = datetime.now(
-        timezone.utc) + timedelta(minutes=minutes or settings.ACCES_TOKEN_EXPIRE_MINUTES)
+timezone.utc) + timedelta(minutes=minutes or settings.ACCES_TOKEN_EXPIRE_MINUTES)
     return jwt.encode({"sub": sub, "exp": expire}, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITH)
     # *btener el usuario
 
