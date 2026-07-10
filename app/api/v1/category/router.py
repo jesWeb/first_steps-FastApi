@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.auth import repository
 from app.core.db import get_db
 from app.api.v1.category.repository import CategoryRepository
-from app.api.v1.category.schemas import CategoryCreate, CategoryUpdate, CategoryPublic
+from app.api.v1.category.schemas import  CategoryUpdate, categoryCreate, CategoryPublic
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -17,7 +17,7 @@ def list_categories(skip: int = 0, limit: int = 50, db: Session = Depends(get_db
 
 
 @router.post("", response_model=CategoryPublic, status_code=status.HTTP_201_CREATED)
-def create_category(data: CategoryCreate, db: Session = Depends(get_db)):
+def create_category(data: categoryCreate, db: Session = Depends(get_db)):
     repository = CategoryRepository(db)
     exist = repository.get_by_slug(data.slug)
     if exist:

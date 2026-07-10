@@ -122,8 +122,8 @@ def get_post(post_id: int = Path(
 
 
 @router.post("", response_model=PostPublic, response_description="Post creado (OK)", status_code=status.HTTP_201_CREATED)
-def create_post(post: Annotated[PostCreate, Depends(PostCreate.as_form)], image: Optional[UploadFile] = File(None), db: Session = Depends(get_db), 
-_editor: User = Depends(require_editor)):
+def create_post(post: Annotated[PostCreate, Depends(PostCreate.as_form)], image: Optional[UploadFile] = File(None), db: Session = Depends(get_db),
+                _editor: User = Depends(require_editor)):
     repository = PostRepository(db)
     saved = None
     try:
@@ -135,8 +135,9 @@ _editor: User = Depends(require_editor)):
         post = repository.create_post(
             title=post.title,
             content=post.content,
-            author=_editor,
+            user=_editor,
             tags=[tag.model_dump() for tag in post.tags],
+            category_id=post.category_id,
             image_url=image_url,
         )
         db.commit()

@@ -2,9 +2,11 @@
 from math import ceil
 from re import U
 from typing import Optional, List, Tuple
+from fastapi import Depends
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session, selectinload, joinedload
-from app.models import PostORM,User , TagORM, User
+from app.core.security import get_current_user
+from app.models import PostORM, User, TagORM, User
 
 
 class PostRepository:
@@ -62,7 +64,7 @@ class PostRepository:
             select(PostORM)
             .options(
                 selectinload(PostORM.tags),
-                joinedload(PostORM.author),
+                joinedload(PostORM.user),
             ).where(PostORM.tags.any(func.lower(TagORM.name).in_(normalized_tag_names)))
             .order_by(PostORM.id.asc())
         )
@@ -75,11 +77,10 @@ class PostRepository:
             select(User).where(User.email == email)
         ).scalar_one_or_none()
 
-        if author_obj:
-            return author_obj
+        # if author_obj:
+        #     return author_obj
 
-        author_obj = User(name=name,
-                               email=email)
+        # author_obj = User(name=name, email=email)
         self.db.add(author_obj)
         self.db.flush()
 
@@ -101,23 +102,25 @@ class PostRepository:
         self.db.flush()
         return tag_obj
 
-    def create_post(self, title: str, content: str, author: Optional[dict], tags: List[dict], image_url: str) -> PostORM:
+    def create_post(self, title: str, content: str, tags: List[dict], image_url: str, category_id: int, user: User = Depends(get_current_user)) -> PostORM:
         author_obj = None
-        if author:
+        if user:
             author_obj = self.ensure_author(
-                author['username'], author['email'])
+                user.full_name, user.email)
 
         post = PostORM(title=title, content=content,
-                       image_url=image_url, author=author_obj)
-
-        for tag in tags:
-            name = tag["name"].split(",")
-            if not name:
-                continue
-            tag_obj = self.ensure_tag(name)
-            post.tags.append(tag_obj)
+                       image_url=image_url, user=author_obj, category_id=category_id)
 
         self.db.add(post)
+
+        for tag in tags:
+            for name in tag["name"].split(","):
+                name = name.strip()
+                if not name:
+                    continue
+                tag_obj = self.ensure_tag(name)
+                post.tags.append(tag_obj)
+
         self.db.flush()
         self.db.refresh(post)
         return post

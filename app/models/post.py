@@ -40,7 +40,7 @@ class PostORM(Base):
     category_id: Mapped[Optional[int]] = mapped_column(ForeignKey(
         "categories.id", ondelete="SET NULL"), nullable=True, index=True)
 
-    category = relationship("CategoryOrm", back_populates="posts"),
+    category = relationship("CategoryOrm", back_populates="posts")
 
     tags: Mapped[List["TagORM"]] = relationship(
         secondary=post_tags,

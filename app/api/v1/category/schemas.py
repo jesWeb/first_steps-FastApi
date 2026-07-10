@@ -11,12 +11,12 @@ class categoryCreate(CategoryBase):
     pass
 
 
-class CategoryUpdate():
+class CategoryUpdate(BaseModel  ):
     name: str | None = Field(min_length=2, max_length=60)
     slug: str | None = Field(min_length=2, max_length=50)
 
 
-class categoryPublic(CategoryBase):
+class CategoryPublic(CategoryBase):
     id: int
 
     model_config = {"from_attributes": True}
