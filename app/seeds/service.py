@@ -119,6 +119,12 @@ def seed_tags(db: Session) -> None:
                 ))
 
 
+def run_all()->None:
+    with SessionLocal() as db:
+        seed_users(db)
+        seed_categories(db)
+        seed_tags(db)
+
 def run_users() -> None:
     with SessionLocal() as db:
         seed_users(db)
