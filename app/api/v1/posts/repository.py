@@ -7,6 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import Session, selectinload, joinedload
 from app.core.security import get_current_user
 from app.models import PostORM, User, TagORM, User
+from app.utils.slugyfy import ensure_unique_slug, slugify_base
 
 
 class PostRepository:
@@ -16,6 +17,16 @@ class PostRepository:
     def get(self, post_id: int) -> Optional[PostORM]:
         post_find = select(PostORM).where(PostORM.id == post_id)
         return self.db.execute(post_find).scalar_one_or_none()
+
+    def get_by_self(self, slug: int) -> Optional[PostORM]:
+
+        query = (
+            select(PostORM).where(PostORM.slug == slug)
+        )
+
+        finally_query = self.db.execute(query).scalar_one_or_none
+
+        return finally_query
 
     def search(
             self,
@@ -108,7 +119,9 @@ class PostRepository:
             author_obj = self.ensure_author(
                 user.full_name, user.email)
 
-        post = PostORM(title=title, content=content,
+        unique_slug = ensure_unique_slug(self.db, title)
+
+        post = PostORM(title=title,  slug=unique_slug, content=content,
                        image_url=image_url, user=author_obj, category_id=category_id)
 
         self.db.add(post)

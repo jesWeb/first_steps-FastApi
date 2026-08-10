@@ -1,11 +1,9 @@
 from contextlib import contextmanager
-from os import name
-import select
 from typing import Optional
-
-from certifi import where
 from pwdlib import PasswordHash
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+
 
 from app.core.db import SessionLocal
 from app.models.category import CategoryOrm
@@ -36,21 +34,21 @@ def _user_by_email(db: Session, email: str) -> Optional[User]:
 
     query_email = select(User).where(User.email == email)
 
-    return db.execute(query_email).scalars().fisrt()
+    return db.execute(query_email).scalars().first()
 
 
 def _category_by_slug(db: Session, slug: str) -> Optional[CategoryOrm]:
 
     query_slug = select(CategoryOrm).where(CategoryOrm.slug == slug)
 
-    return db.execute(query_slug).scalars().fisrt()
+    return db.execute(query_slug).scalars().first()
 
 
 def _tag_by_name(db: Session, name: str) -> Optional[TagORM]:
 
     query_tag = select(TagORM).where(TagORM.name == name)
 
-    return db.execute(query_tag).scalars().fisrt()
+    return db.execute(query_tag).scalars().first()
 
 
 # definir los seeds de acuerdo a los uauarios que tenemos
@@ -82,7 +80,7 @@ def seed_users(db: Session) -> None:
                     email=data["email"],
                     full_name=data.get("full_name"),
                     role=data.get("role"),
-                    hashed_password=hash_password(data["password"])
+                    hased_password=hash_password(data["password"])
                 )
 
                 db.add(crearUser)
@@ -119,11 +117,12 @@ def seed_tags(db: Session) -> None:
                 ))
 
 
-def run_all()->None:
+def run_all() -> None:
     with SessionLocal() as db:
         seed_users(db)
         seed_categories(db)
         seed_tags(db)
+
 
 def run_users() -> None:
     with SessionLocal() as db:

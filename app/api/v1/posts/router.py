@@ -193,3 +193,8 @@ def delete_post(post_id: int, db: Session = Depends(get_db), _editor: User = Dep
 @router.get("/secure")
 def secure_endpoint(token: str = Depends(oauth2_scheme)):
     return {"message": "Acceso con token", "token_recibido": token}
+
+
+@router.get("/slug/{slug}", response_model=Union[PostPublic, PostSummary])
+def get_post_by_slug(slug: str,  include_content: bool = Query(default=True, description="Incluir o no el contenido"), db: Session = Depends = (get_db)):
+    repository = PostRepository(db)
