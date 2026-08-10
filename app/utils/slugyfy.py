@@ -3,12 +3,12 @@ import select
 from sqlalchemy.orm import Session
 
 from app.models.post import PostORM
-from slugyfy import slugyfy as _slugyfy
+from slugify import slugify as _slugify
 
 
 def slugify_base(text: str) -> str:
 
-    slug = _slugyfy(text, lowercase=True, separator='-')
+    slug = _slugify(text, lowercase=True, separator='-')
 
     return slug or "post"
 

@@ -196,5 +196,14 @@ def secure_endpoint(token: str = Depends(oauth2_scheme)):
 
 
 @router.get("/slug/{slug}", response_model=Union[PostPublic, PostSummary])
-def get_post_by_slug(slug: str,  include_content: bool = Query(default=True, description="Incluir o no el contenido"), db: Session = Depends = (get_db)):
+def get_post_by_slug(slug: str,  include_content: bool = Query(default=True, description="Incluir o no el contenido"), db: Session = Depends(get_db)):
     repository = PostRepository(db)
+    post = repository.get_by_slug(slug)
+
+    if not post:
+        raise HTTPException(404, "post no encontrado")
+
+    if not include_content:
+        return PostPublic.model_validate(post, from_attributes=True)
+
+    return PostSummary.model_validate(post, from_attributes=True)
