@@ -10,6 +10,8 @@ from app.api.v1.tags.router import router as tag_router
 from app.api.v1.category.router import router as cate_router
 from fastapi.staticfiles import StaticFiles
 
+from app.core.middleware import register_middlerware
+
 load_dotenv()
 # solo en desarollo ya en porduccion usa migraciones
 
@@ -20,6 +22,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Mini Blog", swagger_ui_parameters={
                   "persistsAuthorization": True})
     Base.metadata.create_all(bind=engine)  # dev
+    #inicializar el mnidelware
+    register_middlerware(app)
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(post_router)
     app.include_router(upload_router)
